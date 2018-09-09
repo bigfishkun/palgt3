@@ -12,11 +12,11 @@ from q001.jobqueue.jobqueue import *
 """
 
 
-class DailyCrawlerMulti:
+class Min5CrawlerMulti:
     def __init__(self):
-        self.daily = DB_CONN['daily']
-        self.daily_hfq = DB_CONN['daily_hfq']
-        self.daily_qfq = DB_CONN['daily_qfq']
+        self.min5 = DB_CONN['min5']
+        self.min5_hfq = DB_CONN['min5_hfq']
+        self.min5_qfq = DB_CONN['min5_qfq']
 
     def crawl_index(self, begin_date=None, end_date=None):
         """
@@ -33,7 +33,7 @@ class DailyCrawlerMulti:
 
         for code in index_codes:
             df_daily = ts.get_k_data(code, index=True, start=begin_date, end=end_date)
-            self.save_data(code, df_daily, self.daily, {'index': True})
+            self.save_data(code, df_daily, self.min5, {'index': True})
 
     def save_data(self, code, df_daily, collection, extra_fields=None):
         """
@@ -60,10 +60,10 @@ class DailyCrawlerMulti:
                 )
             )
 
-            if len(update_requests) == 100:
+            if len(update_requests) == 1000:
                 # 批量写入，提高访问效率
                 update_result = collection.bulk_write(update_requests, ordered=False)
-                print('保存日线数据，代码： %s，插入：%4d条，更新：%4d条' %
+                print('保存5分钟数据，代码： %s，插入：%4d条，更新：%4d条' %
                       (code, update_result.upserted_count, update_result.modified_count),
                       flush=True)
                 update_requests = []
@@ -71,7 +71,7 @@ class DailyCrawlerMulti:
         # 批量写入，提高访问效率
         if len(update_requests) > 0:
             update_result = collection.bulk_write(update_requests, ordered=False)
-            print('保存日线数据，代码： %s，插入：%4d条，更新：%4d条' %
+            print('保存5分钟数据，代码： %s，插入：%4d条，更新：%4d条' %
                   (code, update_result.upserted_count, update_result.modified_count),
                   flush=True)
 
@@ -91,16 +91,8 @@ class DailyCrawlerMulti:
             end_date = datetime.now().strftime('%Y-%m-%d')
 
         # 抓取不复权的价格
-        df_daily = ts.get_k_data(code, autype=None, start=begin_date, end=end_date, retry_count=100, pause=10)
-        self.save_data(code, df_daily, self.daily, {'index': False})
-
-        # 抓取后复权的价格
-        df_daily_hfq = ts.get_k_data(code, autype='hfq', start=begin_date, end=end_date, retry_count=100, pause=10)
-        self.save_data(code, df_daily_hfq, self.daily_hfq, {'index': False})
-
-        # 抓取前复权的价格
-        df_daily_qfq = ts.get_k_data(code, autype='qfq', start=begin_date, end=end_date, retry_count=100, pause=10)
-        self.save_data(code, df_daily_qfq, self.daily_qfq, {'index': False})
+        df_daily = ts.get_k_data(code, ktype='5', autype=None, start=begin_date, end=end_date, retry_count=100, pause=10)
+        self.save_data(code, df_daily, self.min5, {'index': False})
 
     @staticmethod
     def daily_obj_2_doc(code, daily_obj):
@@ -117,7 +109,7 @@ class DailyCrawlerMulti:
 
 def worker(code, begin_date=None, end_date=None):
     print("Worker is working...")
-    dc = DailyCrawlerMulti()
+    dc = Min5CrawlerMulti()
     dc.crawl(code, begin_date, end_date)
 
 
@@ -168,7 +160,7 @@ def generateDailyJob(start, end):
 
 def main():
     queue = Queue()
-    dc = DailyCrawlerMulti()
+    dc = Min5CrawlerMulti()
 
     while True:
         startTime = time()
@@ -182,5 +174,18 @@ def main():
 
         queue.finishJob(job)
 
+def main5():
+    print("Get all codes...")
+    df_basics = ts.get_stock_basics()
+    codes = list(df_basics.index)
+    print("All codes: " + str(codes))
+
+    dc = Min5CrawlerMulti()
+    for code in codes:
+        dc.crawl(code, "2018-09-04","2018-09-08")
+
 if __name__ == '__main__':
-    generateDailyJob("2015-01-01", "2017-01-01")
+    # generateDailyJob("2015-01-01", "2017-01-01")
+    # dc = Min5CrawlerMulti()
+    # dc.crawl("000001", "2017-01-01","2018-01-01")
+    main5()

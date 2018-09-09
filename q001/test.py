@@ -30,7 +30,7 @@ pro = ts.pro_api()
 # df = pro.query('adj_factor',  trade_date='20180803')
 # print(df)
 
-df = pro.query('daily_basic', trade_date='20010721')#, suspend_date='20180720', resume_date='', fiedls='')
+df = pro.query('daily_basic', trade_date='19920721')#, suspend_date='20180720', resume_date='', fiedls='')
 print(df)
 
 
@@ -72,3 +72,19 @@ def test():
             print(code)
             i = i+1
     print(i)
+
+print('##################')
+df = ts.get_k_data('000001', autype=None,start='2018-09-07',end='2018-09-07')
+print(df)
+
+df = ts.get_k_data('000001', autype='hfq',start='2018-09-07',end='2018-09-07')
+print(df)
+
+df = ts.get_k_data('000001', autype='qfq',start='2018-09-07',end='2018-09-07')
+print(df)
+
+df = pro.adj_factor(ts_code='000001.SZ', trade_date='20180907')
+print(df)
+
+df = pro.adj_factor(ts_code='000001.SZ')
+print(df)
